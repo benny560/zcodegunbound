@@ -1,0 +1,36 @@
+# Credentials and private configuration
+.env
+.env.*
+!.env.example
+*apikey*
+*api-key*
+*api_key*
+/glm api.txt
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local tools, extracted caches and browser sessions
+/.playwright-mcp/
+/.qoder/better-loop/
+/ghidra_proj/
+/_xl_tmp/
+/_xlsm_sheets/
+node_modules/
+__pycache__/
+*.pyc
+*.log
+*.out
+*.tmp
+*.bak
+~$*
+/nul
+
+# Generated executables from archived automation experiments
+/beta/_archive/*.exe
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini

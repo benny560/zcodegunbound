@@ -1,0 +1,8 @@
+Trico老计算器_全量采样数据.xlsx  424.9 KB
+Trico老计算器_无头采样数据.xlsx  145.1 KB
+sheet='风修正_216_左攻右' rows=1249 cols=14
+sheet='风修正_223_左攻右' rows=1249 cols=14
+sheet='风修正_223_右攻左' rows=1249 cols=14
+sheet='无风基准_216_左攻右' rows=1427 cols=12
+sheet='无风基准_223_左攻右' rows=1427 cols=12
+sheet='无风基准_223_右攻左' rows=1427 cols=12

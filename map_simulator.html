@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gunbound 实战地图模拟器 · Trico 3in1</title>
+<style>
+:root {
+    --bg-primary:#ffffff; --bg-secondary:#f8f9fa; --bg-card:#ffffff; --bg-input:#f8f9fa;
+    --text-primary:#1a1a2e; --text-secondary:#6b7280; --text-muted:#9ca3af;
+    --accent:#d97706; --accent-light:rgba(217,119,6,0.08); --accent-hover:#b45309;
+    --border:#e5e7eb; --border-focus:#d97706;
+    --success:#10b981; --warning:#f59e0b; --danger:#ef4444; --info:#3b82f6;
+    --canvas-bg:#ffffff; --canvas-grid:rgba(0,0,0,0.06); --canvas-text:#6b7280;
+    --canvas-ground:rgba(0,0,0,0.15); --canvas-empty:#9ca3af;
+    --shadow-sm:0 1px 2px rgba(0,0,0,0.05); --radius-sm:6px; --radius-lg:14px;
+}
+[data-theme="dark"] {
+    --bg-primary:#0f0f17; --bg-secondary:#1a1a25; --bg-card:#16161f; --bg-input:#1e1e2a;
+    --text-primary:#e5e7eb; --text-secondary:#9ca3af; --text-muted:#6b7280;
+    --accent:#f59e0b; --accent-light:rgba(245,158,11,0.12); --accent-hover:#d97706;
+    --border:#2d2d3a; --border-focus:#f59e0b;
+    --canvas-bg:#0f0f17; --canvas-grid:rgba(255,255,255,0.05); --canvas-text:#9ca3af;
+    --canvas-ground:rgba(255,255,255,0.15); --canvas-empty:#6b7280;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Microsoft YaHei','Segoe UI',sans-serif; background:var(--bg-secondary); color:var(--text-primary); min-height:100vh; padding:16px; }
+.container { max-width:1100px; margin:0 auto; }
+.app-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+.app-header h1 { font-size:1.3em; font-weight:700; }
+.app-header .subtitle { font-size:0.78em; color:var(--text-muted); margin-top:2px; }
+.header-right { display:flex; gap:8px; align-items:center; }
+button { font-family:inherit; }
+.theme-toggle-btn { padding:7px 12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); cursor:pointer; font-size:0.85em; }
+.panel { background:var(--bg-card); border-radius:var(--radius-lg); padding:20px; border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+.panel-title { font-size:0.95em; font-weight:600; color:var(--text-primary); margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.hint { font-size:0.78em; color:var(--text-muted); margin-bottom:12px; line-height:1.6; }
+.mapsim-controls { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin-bottom:10px; padding:10px 12px; background:var(--bg-secondary); border-radius:var(--radius-sm); border:1px solid var(--border); }
+.mapsim-controls .mc-group { display:flex; align-items:center; gap:5px; }
+.mapsim-controls label { font-size:0.72em; color:var(--text-muted); font-weight:600; white-space:nowrap; }
+.mapsim-controls select, .mapsim-controls input[type=number] { padding:5px 8px; font-size:0.82em; background:var(--bg-input); border:1px solid var(--border); border-radius:5px; color:var(--text-primary); width:78px; }
+.mapsim-controls select { width:auto; min-width:140px; }
+.mapsim-controls input[type=range] { width:92px; vertical-align:middle; }
+.mapsim-controls .mc-sep { width:1px; height:26px; background:var(--border); margin:0 2px; }
+.mapsim-btn { padding:6px 14px; border-radius:5px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; font-size:0.82em; font-weight:600; transition:all 0.15s ease; }
+.mapsim-btn:hover { background:var(--accent-hover); }
+.mapsim-btn.ghost { background:transparent; color:var(--accent); }
+.mapsim-btn.ghost:hover { background:var(--accent-light); }
+.canvas-container { position:relative; }
+canvas#map-sim-canvas { display:block; width:100%; height:500px; border-radius:var(--radius-sm); cursor:grab; background:var(--canvas-bg); }
+canvas#map-sim-canvas:active { cursor:grabbing; }
+.canvas-info { position:absolute; top:8px; right:10px; font-size:0.75em; color:var(--text-secondary); background:rgba(255,255,255,0.7); padding:3px 8px; border-radius:4px; pointer-events:none; }
+[data-theme="dark"] .canvas-info { background:rgba(15,15,23,0.7); color:#9ca3af; }
+.mapsim-readout { margin-top:10px; font-size:0.82em; color:var(--text-secondary); line-height:1.8; }
+.mapsim-readout .ro-hit-yes { color:var(--success); font-weight:700; }
+.mapsim-readout .ro-hit-no { color:var(--danger); font-weight:700; }
+.mapsim-readout .ro-ref { color:var(--text-muted); }
+.mapsim-readout b { color:var(--text-primary); }
+.mapsim-import-bar { display:none; align-items:center; gap:8px; margin-top:10px; padding:8px 12px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:0.78em; flex-wrap:wrap; }
+.mapsim-import-bar label { color:var(--text-muted); font-weight:600; }
+.mapsim-import-bar input[type=range] { width:140px; }
+.toast-container { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:9999; }
+.toast { background:var(--bg-card); color:var(--text-primary); padding:10px 18px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); margin-bottom:8px; border:1px solid var(--border); font-size:0.85em; animation:fadeIn 0.2s; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-8px);} to{opacity:1;transform:translateY(0);} }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="app-header">
+        <div>
+            <h1>🗺️ Gunbound 实战地图模拟器</h1>
+            <div class="subtitle">Trico 3in1 手动试射 · 真实地形碰撞 · v1.0 (独立版, 物理基点与计算器一致)</div>
+        </div>
+        <div class="header-right">
+            <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-toggle-btn"><span id="theme-icon">🌙</span></button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">实战地图模拟 · 在真实地图上试射 Trico 3in1</div>
+        <div class="hint">
+            ① 选地图 → ② 拖动 <b>我方(蓝)/敌方(红)</b> 坦克到出生点(吸附地形) → ③ 设风向/风力 + 角度/力度 → ④ <b>▶ 试射</b> 看三球弹道飞过地形撞地<br>
+            涌现旋转圈数≈整数且三球汇聚于敌方 = 3in1 命中。地形会改变落点(山体会挡弹道、低洼地会飞过平地预测点)。<br>
+            <span style="color:var(--accent)">「填入参考解」</span>按当前距离/落差/风给出物理参考角力度; 预设地形为特征性还原, 需精确地形用「📥 导入图片」从客户端截图提取。
+        </div>
+        <div class="mapsim-controls">
+            <div class="mc-group"><label>地图</label><select id="mapsim-map" onchange="onMapSimInput()"></select></div>
+            <div class="mc-sep"></div>
+            <div class="mc-group"><label>我方 X</label><input type="number" id="mapsim-myx" min="0" max="1600" step="1" value="80"></div>
+            <div class="mc-group"><label>敌方 X</label><input type="number" id="mapsim-enemyx" min="0" max="1600" step="1" value="1450"></div>
+            <div class="mc-group"><label>方向</label><select id="mapsim-side" onchange="onMapSimInput()">
+                <option value="right">向右 (敌在右)</option><option value="left">向左 (敌在左)</option>
+            </select></div>
+            <div class="mc-sep"></div>
+            <div class="mc-group"><label>风角</label><input type="range" id="mapsim-wa" min="0" max="359" step="1" value="90" oninput="syncWA()"><input type="number" id="mapsim-wa-num" min="0" max="359" step="1" value="90" style="width:56px" oninput="syncWA()"></div>
+            <div class="mc-group"><label>风力</label><input type="number" id="mapsim-ws" min="0" max="30" step="0.1" value="0"></div>
+            <div class="mc-sep"></div>
+            <div class="mc-group"><label>角度°</label><input type="number" id="mapsim-angle" min="1" max="89" step="0.1" value="70"></div>
+            <div class="mc-group"><label>力度</label><input type="number" id="mapsim-power" min="0.1" max="5" step="0.001" value="2.5"></div>
+            <div class="mc-group"><button class="mapsim-btn" id="mapsim-fire" onclick="playMapSimAnimation()">▶ 试射</button><button class="mapsim-btn ghost" onclick="applyMapSimReference()">填入参考解</button></div>
+        </div>
+        <div class="canvas-container">
+            <canvas id="map-sim-canvas"></canvas>
+            <div class="canvas-info" id="mapsim-info">放置我方/敌方坦克(可拖动), 设角度+力度后试射</div>
+        </div>
+        <div class="mapsim-readout" id="mapsim-readout">—</div>
+        <div class="mapsim-import-bar" id="mapsim-import-bar">
+            <label>📥 导入真实地形图片</label>
+            <input type="file" id="mapsim-imgfile" accept="image/*">
+            <label>地面阈值</label>
+            <input type="range" id="mapsim-thresh" min="0" max="255" step="1" value="120">
+            <span id="mapsim-thresh-val" style="min-width:30px;color:var(--text-muted)">120</span>
+            <label>跨度(SD)</label>
+            <input type="number" id="mapsim-span" min="10" max="80" step="1" value="40" style="width:60px">
+            <button class="mapsim-btn ghost" onclick="drawMapSim()">重新预览</button>
+            <button class="mapsim-btn" onclick="confirmImportedMap()">确认为地图</button>
+            <span id="mapsim-import-status" style="color:var(--text-muted)"></span>
+        </div>
+    </div>
+</div>
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ============ 主题 ============
+function getCSSVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function toggleTheme(){
+    const html=document.documentElement;
+    const cur=html.getAttribute('data-theme');
+    const nt=cur==='dark'?'light':'dark';
+    if(nt==='dark') html.setAttribute('data-theme','dark'); else html.removeAttribute('data-theme');
+    localStorage.setItem('mapsim-theme',nt);
+    document.getElementById('theme-icon').textContent=nt==='dark'?'☀️':'🌙';
+    drawMapSim();
+}
+(function initTheme(){
+    const t=localStorage.getItem('mapsim-theme')||'light';
+    if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('theme-icon').textContent='☀️';}
+})();
+function showToast(msg){ const c=document.getElementById('toast-container'); const d=document.createElement('div'); d.className='toast'; d.textContent=msg; c.appendChild(d); setTimeout(()=>d.remove(),2200); }
+
+// ============ 物理常数 (与计算器同源: 重力430/质量0.23/PF) ============
+const GB_PF = 0.004332712;
+const DISTANCE_PIXELS_PER_20SD = 800/20;       // 40 px/SD
+const ELEVATION_PIXELS_PER_UNIT = 516/13;      // ≈39.69 px/落差单位
+const TRICO_SPIN_RADIUS = 35;
+const TRICO_OFFSET_RAMP = 2;
+function calcWindParams(windAngleDeg, windStrength, windInfluence, gravity, mass){
+    const windRad = windAngleDeg*Math.PI/180;
+    const B14 = windStrength*windInfluence;
+    const xForce = Math.cos(windRad)*B14;
+    const yForce = Math.sin(windRad)*B14;
+    const xA = xForce/mass;
+    const effGrav = gravity - yForce/mass;
+    return { xA, effGrav, xForce, yForce, B14 };
+}
+// 给定角度+目标距离+落差+风 → 求速度/力度/时间(解析, 与计算器 calcCenterTrajectory 同公式)
+function calcCenterTrajectory(angle, distance, windInfluence, windAngleDeg, windStrength, sdParts, elevationInternal, gravity, mass){
+    const wp = calcWindParams(windAngleDeg, windStrength, windInfluence, gravity, mass);
+    if(wp.effGrav<=0) return null;
+    const radians=(angle+0.00001)*Math.PI/180, cosA=Math.cos(radians), sinA=Math.sin(radians);
+    const xDistance = DISTANCE_PIXELS_PER_20SD*distance;
+    let velocity, time;
+    if(Math.abs(elevationInternal)<0.001){
+        const denom=(2*cosA*sinA)/wp.effGrav + (2*wp.xA*sinA*sinA)/(wp.effGrav*wp.effGrav);
+        if(denom<=0) return null;
+        velocity=Math.sqrt(xDistance/denom);
+        time=(2*velocity*sinA)/wp.effGrav;
+    } else {
+        const tanA=sinA/cosA;
+        const num=2*(xDistance*tanA - elevationInternal);
+        const den=wp.effGrav + wp.xA*tanA;
+        if(den<=0||num<=0) return null;
+        const t2=num/den; if(t2<0) return null;
+        time=Math.sqrt(t2);
+        const xVel=(xDistance - 0.5*wp.xA*time*time)/time;
+        velocity=xVel/cosA;
+    }
+    if(!isFinite(velocity)||velocity<=0) return null;
+    return { angle, velocity, xVelocity:velocity*cosA, yVelocity:velocity*sinA, time, power:velocity*GB_PF, effectiveGravity:wp.effGrav, xA:wp.xA };
+}
+// 幂律旋转角速度(与计算器相位模型一致): 右 0.023623·V^0.764315, 左 0.687878·V^0.299291
+function getOmega(power, side){
+    const V=power/GB_PF;
+    return side==='left' ? 0.687878*Math.pow(V,0.299291) : 0.023623*Math.pow(V,0.764315);
+}
+
+// ============ 经典客户端地图 (特征性还原地形) ============
+const GB_MAP_W = 1600; // 40 SD
+const GB_MAPS = {
+    miratown: { name:'米拉镇 Miratown', sky:'#bfe3ff', ground:'#caa46a', grid:'#8a6d3b',
+        terrain:[[0,0],[150,-4],[300,3],[450,-2],[600,4],[750,-3],[900,2],[1050,-4],[1200,3],[1350,-2],[1500,2],[1600,0]],
+        note:'较平坦沙漠小镇', spawnMy:80, spawnEnemy:1450 },
+    sea_of_hero: { name:'英雄之海 Sea of Hero', sky:'#a9d8ff', ground:'#6b7a52', grid:'#3f4a30',
+        terrain:[[0,-30],[150,-45],[300,-25],[430,30],[560,95],[700,150],[800,172],[900,150],[1040,95],[1170,30],[1300,-25],[1450,-45],[1600,-30]],
+        note:'中央高峰(挡弹道)+两侧低地', spawnMy:120, spawnEnemy:1480 },
+    adium_root: { name:'亚迪乌姆之根 Adium Root', sky:'#c8eaff', ground:'#7d6b4f', grid:'#52432f',
+        terrain:[[0,5],[140,32],[250,8],[380,52],[500,14],[620,58],[750,20],[880,52],[1000,12],[1130,46],[1280,16],[1430,34],[1600,5]],
+        note:'根系隆起, 多小丘', spawnMy:90, spawnEnemy:1500 },
+    meta_mine: { name:'美达矿山 Meta Mine', sky:'#d7c9a8', ground:'#8a7a55', grid:'#5a4f33',
+        terrain:[[0,0],[200,0],[212,45],[400,45],[412,90],[600,90],[612,130],[800,130],[812,90],[1000,90],[1012,45],[1200,45],[1212,0],[1600,0]],
+        note:'阶梯矿山台地', spawnMy:80, spawnEnemy:1520 },
+    cozy_tower: { name:'舒适塔 Cozy Tower', sky:'#bce0ff', ground:'#9a8a6a', grid:'#5f543a',
+        terrain:[[0,0],[360,0],[372,185],[560,185],[572,0],[780,0],[792,185],[980,185],[992,0],[1600,0]],
+        note:'两座高塔(需越过/绕开)', spawnMy:80, spawnEnemy:1500 },
+    slope: { name:'斜坡 Slope', sky:'#c3e0d6', ground:'#8a9a7a', grid:'#566048',
+        terrain:[[0,-130],[200,-95],[400,-60],[600,-25],[800,10],[1000,45],[1200,80],[1400,115],[1600,140]],
+        note:'左低右高均匀斜坡', spawnMy:100, spawnEnemy:1450 },
+    cave: { name:'洞窟 Cave', sky:'#9fb4c8', ground:'#5d5547', grid:'#37302a',
+        terrain:[[0,30],[180,38],[360,-30],[540,-58],[720,-66],[820,-60],[980,-40],[1160,18],[1340,32],[1600,28]],
+        note:'中央凹陷洞坑', spawnMy:90, spawnEnemy:1500 },
+    stardust: { name:'星尘 Stardust', sky:'#1a1a2e', ground:'#6a6a7a', grid:'#3a3a4a',
+        terrain:[[0,0],[150,28],[300,-14],[450,32],[600,-20],[750,38],[900,-26],[1050,32],[1200,-16],[1350,28],[1500,-10],[1600,0]],
+        note:'月面起伏(夜间)', spawnMy:80, spawnEnemy:1500 },
+    empire: { name:'帝国 Empire', sky:'#bcd0e6', ground:'#9c8a6e', grid:'#5e5240',
+        terrain:[[0,0],[200,0],[252,65],[400,65],[452,0],[600,0],[652,95],[848,95],[900,0],[1050,0],[1102,65],[1250,65],[1302,0],[1600,0]],
+        note:'对称城墙堡垒', spawnMy:90, spawnEnemy:1510 },
+    random: { name:'随机 Random', sky:'#bfe3ff', ground:'#8a8a7a', grid:'#5a5a4a',
+        terrain:[[0,0],[400,0],[800,0],[1200,0],[1600,0]], note:'随机抽取一张', isRandom:true, spawnMy:80, spawnEnemy:1500 },
+};
+let GB_IMPORTED_MAPS = {};
+function mapGroundY(map, mapX){
+    if(!map||!map.terrain||!map.terrain.length) return 0;
+    const t=map.terrain;
+    if(mapX<=t[0][0]) return t[0][1];
+    if(mapX>=t[t.length-1][0]) return t[t.length-1][1];
+    let lo=0, hi=t.length-1;
+    while(hi-lo>1){ const m=(lo+hi)>>1; if(t[m][0]<=mapX) lo=m; else hi=m; }
+    const [x0,y0]=t[lo], [x1,y1]=t[hi];
+    return y0+(y1-y0)*((mapX-x0)/(x1-x0));
+}
+function resolveMap(key){
+    if(GB_IMPORTED_MAPS[key]) return GB_IMPORTED_MAPS[key];
+    let m=GB_MAPS[key];
+    if(m&&m.isRandom){ const ks=Object.keys(GB_MAPS).filter(k=>!GB_MAPS[k].isRandom); m=GB_MAPS[ks[Math.floor(Math.random()*ks.length)]]; }
+    return m;
+}
+function gbMapKeys(){ return Object.keys(GB_IMPORTED_MAPS).concat(Object.keys(GB_MAPS)); }
+
+// ============ 前向物理 (角度+力度 → 三球+地形碰撞) ============
+function gbPhysicsToMap(p, launchX, launchY, dirSign){ return { mx:launchX+dirSign*p.x, my:launchY+p.y }; }
+function gbClipTrajectoryToTerrain(traj, launchX, launchY, dirSign, map){
+    if(!traj||!traj.length) return { traj:[], impact:null };
+    const out=[traj[0]]; let impact=null;
+    for(let i=1;i<traj.length;i++){
+        const a=gbPhysicsToMap(traj[i-1],launchX,launchY,dirSign), b=gbPhysicsToMap(traj[i],launchX,launchY,dirSign);
+        const ga=mapGroundY(map,a.mx), gb=mapGroundY(map,b.mx);
+        const aAbove=a.my>=ga-0.5, bBelow=b.my<=gb+0.5;
+        if(aAbove&&bBelow){
+            let lo=0, hi=1;
+            for(let k=0;k<10;k++){ const mid=(lo+hi)/2; const mx=a.mx+(b.mx-a.mx)*mid, my=a.my+(b.my-a.my)*mid; if(my>mapGroundY(map,mx)) lo=mid; else hi=mid; }
+            const mid=(lo+hi)/2;
+            const ix=traj[i-1].x+(traj[i].x-traj[i-1].x)*mid, iy=traj[i-1].y+(traj[i].y-traj[i-1].y)*mid;
+            out.push({x:ix,y:iy}); impact={x:ix,y:iy};
+            return { traj:out, impact };
+        }
+        out.push(traj[i]);
+    }
+    return { traj:out, impact:impact||(traj.length?{x:traj[traj.length-1].x,y:traj[traj.length-1].y}:null) };
+}
+function simulateTricoForward(angleDeg, power, side, windAngleDeg, windStrength, launchX, map){
+    const dirSign = side==='left'?-1:1;
+    const mirrorWind = side==='left' ? (((180-windAngleDeg)%360+360)%360) : windAngleDeg;
+    const wp = calcWindParams(mirrorWind, windStrength, 1.0, 430, 0.23);
+    const V = power/GB_PF;
+    const rad=angleDeg*Math.PI/180;
+    const vx0=V*Math.cos(rad), vy0=V*Math.sin(rad);
+    const xA=wp.xA, effGrav=wp.effGrav;
+    const launchY=mapGroundY(map,launchX);
+    const omega=getOmega(power,side);
+    const dt=0.012, tmax=14;
+    let T_impact=tmax, prev=null;
+    for(let t=0;t<=tmax+1e-9;t+=dt){
+        const px=vx0*t+0.5*xA*t*t, py=vy0*t-0.5*effGrav*t*t;
+        const mx=launchX+dirSign*px, my=launchY+py;
+        if(mx<-200||mx>(map.width||GB_MAP_W)+200){ T_impact=t; break; }
+        const gy=mapGroundY(map,mx);
+        if(t>0.02&&prev&&my<=gy&&prev.my>=prev.gy-0.5){
+            let lo=t-dt, hi=t;
+            for(let k=0;k<12;k++){ const mt=(lo+hi)/2; const mpx=vx0*mt+0.5*xA*mt*mt, mpy=vy0*mt-0.5*effGrav*mt*mt; const mmx=launchX+dirSign*mpx, mmy=launchY+mpy; if(mmy>mapGroundY(map,mmx)) lo=mt; else hi=mt; }
+            T_impact=(lo+hi)/2; break;
+        }
+        prev={my,gy};
+    }
+    // 3球(内联旋转, 与中心同 ½g·t²)
+    const R=TRICO_SPIN_RADIUS, angleModifier=side==='right'?-1:1;
+    const steps=300, balls=[];
+    for(let bi=0;bi<3;bi++){
+        const sign=bi===0?0:(bi===1?1:-1); const traj=[];
+        for(let i=0;i<=steps;i++){
+            const tt=(i/steps)*T_impact;
+            const cx=vx0*tt+0.5*xA*tt*tt, cy=vy0*tt-0.5*effGrav*tt*tt;
+            const rotAngle=omega*tt*angleModifier, offF=Math.min(TRICO_OFFSET_RAMP*tt,1);
+            traj.push({x:cx+sign*R*offF*Math.cos(rotAngle), y:cy+sign*R*offF*Math.sin(rotAngle)});
+        }
+        balls.push({idx:bi,trajectory:traj});
+    }
+    const centerTraj=[]; const N=240;
+    for(let i=0;i<=N;i++){ const tt=(i/N)*T_impact; centerTraj.push({x:vx0*tt+0.5*xA*tt*tt, y:vy0*tt-0.5*effGrav*tt*tt}); }
+    const centerClipped=gbClipTrajectoryToTerrain(centerTraj,launchX,launchY,dirSign,map);
+    const ballsClipped=balls.map((b,i)=>{ const c=gbClipTrajectoryToTerrain(b.trajectory,launchX,launchY,dirSign,map); return {idx:i,traj:c.traj,impact:c.impact}; });
+    return { centerTraj:centerClipped.traj, centerImpact:centerClipped.impact, balls:ballsClipped, T:T_impact, rotationCount:omega*T_impact/(2*Math.PI), omega, vx0, vy0, xA, effGrav, launchX, launchY, dirSign, side };
+}
+function gbEvalHit(sim, enemyX, map){
+    if(!sim||!sim.balls) return { hit:false, ballsHit:0, minDists:[], impacts:[], xSpread:Infinity };
+    const eY=mapGroundY(map,enemyX), halfW=20, hgt=33;
+    const distToBox=(mx,my)=>{ const cx=Math.max(enemyX-halfW,Math.min(mx,enemyX+halfW)); const cy=Math.max(eY,Math.min(my,eY+hgt)); return Math.hypot(mx-cx,my-cy); };
+    const impacts=sim.balls.map(b=>b.impact?gbPhysicsToMap(b.impact,sim.launchX,sim.launchY,sim.dirSign):null);
+    const minDists=impacts.map(p=>p?distToBox(p.mx,p.my):Infinity);
+    const xs=impacts.filter(Boolean).map(p=>p.mx);
+    const xSpread=xs.length?Math.max(...xs)-Math.min(...xs):Infinity;
+    const ballsHit=minDists.filter(d=>d<=25).length;
+    return { hit:ballsHit>=2, ballsHit, minDists, impacts, xSpread, enemyX, enemyY:eY };
+}
+
+// ============ 物理参考解 (自包含: 落地物理与计算器一致, 旋转档用幂律分类) ============
+function computeMapReference(distance, elevation, side, windAngle, windStrength){
+    const mirrorWind = side==='left' ? (((180-windAngle)%360+360)%360) : windAngle;
+    const cands=[];
+    for(let a=5;a<=89;a+=0.25){
+        const r=calcCenterTrajectory(a, distance, 1.0, mirrorWind, windStrength, 20, elevation, 430, 0.23);
+        if(!r) continue;
+        if(r.power>5||r.power<0.3||r.time<=0) continue;
+        const omg=getOmega(r.power, side);
+        const turns=omg*r.time/(2*Math.PI);
+        cands.push({angle:r.angle, power:r.power, turns});
+    }
+    // 每个 N 档(目标圈数≈N)取最接近的解
+    const out={};
+    for(let n=1;n<=4;n++){
+        let best=null, bd=Infinity;
+        for(const c of cands){ if(c.turns>=n-0.5&&c.turns<n+0.5){ const d=Math.abs(c.turns-n); if(d<bd){bd=d;best=c;} } }
+        if(best) out[n]=best;
+    }
+    return out;
+}
+
+// ============ 状态 & UI ============
+let mapSimState={ mapKey:'miratown', myX:80, enemyX:1450, side:'right', windAngle:90, windStrength:0, angle:70, power:2.5 };
+let mapSimResult=null, mapSimRef={}, mapSimHit=null, mapSimAnimRAF=null, mapSimDragging=null;
+let mapSimView={ pad:28, scale:1, minY:0, maxY:400, W:900, H:500, width:1600, viewMinX:0, viewMaxX:1600 };
+let importedImgCanvas=null;
+
+function getMapSimMap(){ return resolveMap(mapSimState.mapKey)||GB_MAPS.miratown; }
+function clampMapX(x){ const m=getMapSimMap(); const w=m.width||GB_MAP_W; return Math.max(10,Math.min(w-10,isFinite(x)?x:80)); }
+function syncWA(){ const wa=document.getElementById('mapsim-wa'), wan=document.getElementById('mapsim-wa-num'); wa.value=wan.value; wan.value=wa.value; onMapSimInput(); }
+
+function populateMapSimDropdown(){
+    const sel=document.getElementById('mapsim-map'); const cur=sel.value||mapSimState.mapKey;
+    sel.innerHTML='';
+    gbMapKeys().forEach(k=>{ const m=GB_IMPORTED_MAPS[k]||GB_MAPS[k]; if(!m) return; const o=document.createElement('option'); o.value=k; o.textContent=m.name+(m.imported?' (导入)':''); sel.appendChild(o); });
+    const imp=document.createElement('option'); imp.value='__import__'; imp.textContent='📥 导入图片...'; sel.appendChild(imp);
+    sel.value = gbMapKeys().includes(cur)?cur:(gbMapKeys()[0]||'miratown');
+}
+function onMapSimInput(){
+    const g=(id)=>parseFloat(document.getElementById(id).value);
+    const sel=document.getElementById('mapsim-map');
+    if(sel.value==='__import__'){ document.getElementById('mapsim-import-bar').style.display='flex'; document.getElementById('mapsim-imgfile').click(); sel.value=gbMapKeys().includes(mapSimState.mapKey)?mapSimState.mapKey:(gbMapKeys()[0]||'miratown'); return; }
+    document.getElementById('mapsim-import-bar').style.display = GB_IMPORTED_MAPS[sel.value]?'flex':'none';
+    if(sel.value==='random'){ const ks=Object.keys(GB_MAPS).filter(k=>!GB_MAPS[k].isRandom); mapSimState.mapKey=ks[Math.floor(Math.random()*ks.length)]; }
+    else mapSimState.mapKey=sel.value;
+    mapSimState.myX=clampMapX(g('mapsim-myx'));
+    mapSimState.enemyX=clampMapX(g('mapsim-enemyx'));
+    const autoSide=mapSimState.myX<=mapSimState.enemyX?'right':'left';
+    const sideSel=document.getElementById('mapsim-side').value;
+    if((sideSel==='right')!==(mapSimState.myX<=mapSimState.enemyX)){ mapSimState.side=autoSide; document.getElementById('mapsim-side').value=autoSide; }
+    else mapSimState.side=sideSel;
+    mapSimState.windAngle=(((g('mapsim-wa'))%360)+360)%360;
+    mapSimState.windStrength=Math.max(0,g('mapsim-ws'));
+    mapSimState.angle=Math.min(89,Math.max(1,g('mapsim-angle')));
+    mapSimState.power=Math.min(5,Math.max(0.1,g('mapsim-power')));
+    try{ localStorage.setItem('mapsim-state',JSON.stringify(mapSimState)); }catch(e){}
+    computeMapSim(); drawMapSim();
+}
+function computeMapSim(){
+    const map=getMapSimMap(), s=mapSimState;
+    try{ mapSimResult=simulateTricoForward(s.angle,s.power,s.side,s.windAngle,s.windStrength,s.myX,map); mapSimHit=gbEvalHit(mapSimResult,s.enemyX,map); }catch(e){ mapSimResult=null; mapSimHit=null; }
+    try{
+        const dist=Math.abs(s.enemyX-s.myX)/40, elev=mapGroundY(map,s.enemyX)-mapGroundY(map,s.myX);
+        mapSimRef=computeMapReference(dist, elev, s.side, s.windAngle, s.windStrength);
+    }catch(e){ mapSimRef={}; }
+    updateMapSimReadout();
+}
+function updateMapSimReadout(){
+    const s=mapSimState, map=getMapSimMap();
+    const dist=Math.abs(s.enemyX-s.myX)/40;
+    const elevPx=mapGroundY(map,s.enemyX)-mapGroundY(map,s.myX);
+    const elevU=elevPx/ELEVATION_PIXELS_PER_UNIT;
+    const parts=[];
+    parts.push(`<b>${map.name}</b> · 距离 <b>${dist.toFixed(1)} SD</b> · 落差 <b>${elevU>=0?'+':''}${elevU.toFixed(1)}</b> (敌${elevPx>=0?'高于':'低于'}我${Math.abs(elevPx).toFixed(0)}px)`);
+    if(mapSimResult){ const rc=mapSimResult.rotationCount; parts.push(`飞行 <b>${mapSimResult.T.toFixed(2)}s</b> · 涌现旋转 <b>≈${rc.toFixed(2)} 圈</b> (近 N${Math.round(rc)})`); }
+    if(mapSimHit){ const bh=mapSimHit.ballsHit; const spans=mapSimHit.minDists.map((d,i)=>`球${i+1}:${isFinite(d)?d.toFixed(0)+'px':'—'}`).join(' ');
+        let v; if(bh>=3) v=`<span class="ro-hit-yes">★ 完美 3in1 (3球全中)! ★</span>`;
+        else if(bh===2) v=`<span class="ro-hit-yes">双球命中 (2/3)</span>`;
+        else if(bh===1) v=`<span class="ro-hit-no">仅 1 球擦中</span>`;
+        else v=`<span class="ro-hit-no">未命中 (散落 ${mapSimHit.xSpread.toFixed(0)}px)</span>`;
+        parts.push(`${v} · 三球到敌hitbox ${spans}`);
+    }
+    const refNs=[1,2,3,4].filter(n=>mapSimRef[n]);
+    if(refNs.length){ parts.push(`<span class="ro-ref">参考解(物理, 当前距离/落差/风): ${refNs.map(n=>`N${n}:${mapSimRef[n].angle.toFixed(0)}°/${mapSimRef[n].power.toFixed(2)}`).join('  ')}</span>`); }
+    else parts.push(`<span class="ro-ref">参考解: 当前参数下无解</span>`);
+    document.getElementById('mapsim-readout').innerHTML=parts.join('<br>');
+    const info=document.getElementById('mapsim-info');
+    if(mapSimHit){ const bh=mapSimHit.ballsHit; info.innerHTML=bh>=2?`🎯 ${bh}/3 球命中敌方!`:`三球落点跨度 ${mapSimHit.xSpread.toFixed(0)}px, ${bh}/3 中`; }
+}
+function applyMapSimReference(){
+    const refNs=[1,2,3,4].filter(n=>mapSimRef[n]);
+    if(!refNs.length){ showToast('当前参数下无参考解'); return; }
+    const pick=mapSimRef[3]||mapSimRef[Math.floor(refNs.length/2)+1]||mapSimRef[refNs[0]];
+    mapSimState.angle=+pick.angle.toFixed(1); mapSimState.power=+pick.power.toFixed(3);
+    document.getElementById('mapsim-angle').value=mapSimState.angle;
+    document.getElementById('mapsim-power').value=mapSimState.power;
+    onMapSimInput();
+}
+
+// ============ 绘制 ============
+function drawMapSim(animProgress){
+    const canvas=document.getElementById('map-sim-canvas'); if(!canvas) return;
+    const ctx=canvas.getContext('2d');
+    const dpr=window.devicePixelRatio||1;
+    const rect=canvas.getBoundingClientRect();
+    canvas.width=rect.width*dpr; canvas.height=rect.height*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const W=rect.width, H=rect.height;
+    const map=getMapSimMap(), s=mapSimState, width=map.width||GB_MAP_W;
+    let viewMinX=Math.min(s.myX,s.enemyX), viewMaxX=Math.max(s.myX,s.enemyX);
+    let minY=Infinity, maxY=-Infinity;
+    const trajPts=[];
+    if(mapSimResult){ const {launchX,launchY,dirSign}=mapSimResult;
+        mapSimResult.balls.forEach(b=>b.traj.forEach(p=>trajPts.push({mx:launchX+dirSign*p.x,my:launchY+p.y})));
+        if(mapSimResult.centerTraj) mapSimResult.centerTraj.forEach(p=>trajPts.push({mx:launchX+dirSign*p.x,my:launchY+p.y}));
+        trajPts.forEach(p=>{ if(p.mx<viewMinX)viewMinX=p.mx; if(p.mx>viewMaxX)viewMaxX=p.mx; });
+    }
+    viewMinX=Math.max(0,viewMinX-160); viewMaxX=Math.min(width,viewMaxX+160);
+    if(viewMaxX-viewMinX<600){ const c=(viewMinX+viewMaxX)/2; viewMinX=Math.max(0,c-300); viewMaxX=Math.min(width,c+300); }
+    for(let x=Math.floor(viewMinX);x<=viewMaxX;x+=20){ const gy=mapGroundY(map,x); if(gy<minY)minY=gy; if(gy>maxY)maxY=gy; }
+    trajPts.forEach(p=>{ if(p.my<minY)minY=p.my; if(p.my>maxY)maxY=p.my; });
+    minY=Math.min(minY,-20); maxY=Math.max(maxY,(maxY>0?maxY:0)+40,120);
+    const pad=28, spanX=viewMaxX-viewMinX;
+    const scale=Math.min((W-2*pad)/spanX,(H-2*pad)/((maxY-minY)||1));
+    const toScreenX=(mx)=>pad+(mx-viewMinX)*scale;
+    const toScreenY=(my)=>H-pad-(my-minY)*scale;
+    mapSimView={pad,scale,minY,maxY,W,H,width,viewMinX,viewMaxX};
+    // 天空
+    ctx.fillStyle=map.sky||getCSSVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+    // 网格
+    ctx.strokeStyle=getCSSVar('--canvas-grid'); ctx.lineWidth=1; ctx.beginPath();
+    const sdStart=Math.floor(viewMinX/40), sdEnd=Math.ceil(viewMaxX/40);
+    for(let sd=sdStart;sd<=sdEnd;sd++){ const x=toScreenX(sd*40); ctx.moveTo(x,0); ctx.lineTo(x,H); }
+    for(let h=Math.ceil(minY/50)*50;h<=maxY;h+=50){ const y=toScreenY(h); ctx.moveTo(0,y); ctx.lineTo(W,y); }
+    ctx.stroke();
+    ctx.fillStyle=getCSSVar('--canvas-text'); ctx.font='10px Microsoft YaHei'; ctx.textAlign='center';
+    for(let sd=sdStart;sd<=sdEnd;sd+=2) ctx.fillText(sd+'SD',toScreenX(sd*40),12);
+    // 地形
+    ctx.beginPath(); ctx.moveTo(toScreenX(viewMinX),toScreenY(mapGroundY(map,viewMinX)));
+    for(let x=viewMinX;x<=viewMaxX;x+=6) ctx.lineTo(toScreenX(x),toScreenY(mapGroundY(map,x)));
+    ctx.lineTo(toScreenX(viewMaxX),H); ctx.lineTo(toScreenX(viewMinX),H); ctx.closePath();
+    ctx.fillStyle=map.ground||getCSSVar('--canvas-ground'); ctx.fill();
+    ctx.strokeStyle=map.grid||getCSSVar('--canvas-ground'); ctx.lineWidth=2; ctx.beginPath();
+    for(let x=viewMinX;x<=viewMaxX;x+=6){ const sx=toScreenX(x),sy=toScreenY(mapGroundY(map,x)); if(x===viewMinX)ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy); }
+    ctx.stroke();
+    // 拟提取预览
+    if(document.getElementById('mapsim-import-bar').style.display==='flex'&&importedImgCanvas) drawImportPreview(ctx,toScreenX,toScreenY,width);
+    // 风
+    drawMapSimWind(ctx,36,36,s.windAngle,s.windStrength);
+    // 弹道
+    if(mapSimResult){
+        const {launchX,launchY,dirSign,balls,centerTraj}=mapSimResult;
+        const colors=['#ef4444','#f59e0b','#10b981'];
+        if(centerTraj&&centerTraj.length>1) drawMapSimCurve(ctx,centerTraj,launchX,launchY,dirSign,toScreenX,toScreenY,'rgba(148,163,184,0.45)',1.4,[3,4]);
+        balls.forEach((b,bi)=>{
+            if(!b.traj||b.traj.length<2) return;
+            const pt=(animProgress==null)?b.traj:b.traj.slice(0,Math.max(1,Math.floor((b.traj.length-1)*animProgress))+1);
+            drawMapSimCurve(ctx,pt,launchX,launchY,dirSign,toScreenX,toScreenY,colors[bi],bi===0?2.6:1.8,bi===0?null:[5,3]);
+            if(animProgress!=null&&pt.length){ const p=pt[pt.length-1]; const sx=toScreenX(launchX+dirSign*p.x),sy=toScreenY(launchY+p.y);
+                ctx.save(); ctx.fillStyle=colors[bi]; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(sx,sy,bi===0?6:5,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore(); }
+        });
+        balls.forEach((b,bi)=>{
+            if(!b.impact) return;
+            const sx=toScreenX(launchX+dirSign*b.impact.x), sy=toScreenY(launchY+b.impact.y);
+            if(animProgress==null||animProgress>=0.995){
+                ctx.save();
+                for(let r=6;r<=22;r+=6){ ctx.strokeStyle=`rgba(239,68,68,${Math.max(0,0.5-r/50)})`; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.stroke(); }
+                ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.arc(sx,sy,5,0,Math.PI*2); ctx.fill(); ctx.restore();
+            }
+        });
+    }
+    // 敌方hitbox
+    const eX=s.enemyX, eY=mapGroundY(map,eX);
+    ctx.save(); ctx.strokeStyle=getCSSVar('--danger'); ctx.fillStyle='rgba(239,68,68,0.08)'; ctx.lineWidth=1.5;
+    ctx.fillRect(toScreenX(eX-20),toScreenY(eY+33),40*scale,33*scale); ctx.strokeRect(toScreenX(eX-20),toScreenY(eY+33),40*scale,33*scale); ctx.restore();
+    // 坦克
+    drawMapSimTank(ctx,toScreenX(s.myX),toScreenY(mapGroundY(map,s.myX)),'#2563eb','我',s.side);
+    drawMapSimTank(ctx,toScreenX(s.enemyX),toScreenY(eY),'#dc2626','敌',s.side==='right'?'left':'right');
+    // 距离连线
+    ctx.strokeStyle='rgba(148,163,184,0.4)'; ctx.setLineDash([4,4]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(toScreenX(s.myX),toScreenY(mapGroundY(map,s.myX))-26); ctx.lineTo(toScreenX(s.enemyX),toScreenY(eY)-26); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=getCSSVar('--canvas-text'); ctx.font='11px Microsoft YaHei'; ctx.textAlign='center';
+    ctx.fillText((Math.abs(s.enemyX-s.myX)/40).toFixed(1)+' SD',(toScreenX(s.myX)+toScreenX(s.enemyX))/2,toScreenY(Math.max(mapGroundY(map,s.myX),eY))-32);
+}
+function drawMapSimCurve(ctx,traj,launchX,launchY,dirSign,toScreenX,toScreenY,color,lw,dash){
+    ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw; if(dash)ctx.setLineDash(dash); ctx.beginPath();
+    traj.forEach((p,i)=>{ const sx=toScreenX(launchX+dirSign*p.x),sy=toScreenY(launchY+p.y); if(i===0)ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy); });
+    ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+}
+function drawMapSimTank(ctx,x,y,color,label,facing){
+    ctx.save(); ctx.fillStyle=color; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.ellipse(x,y-7,13,7,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    const dir=facing==='left'?-1:1; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(x,y-9); ctx.lineTo(x+dir*16,y-16); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle='#fff'; ctx.font='bold 9px Microsoft YaHei'; ctx.textAlign='center'; ctx.fillText(label,x,y-22);
+}
+function drawMapSimWind(ctx,x,y,deg,strength){
+    ctx.save(); ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.strokeStyle=getCSSVar('--border');
+    ctx.beginPath(); ctx.arc(x,y,22,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    const rad=deg*Math.PI/180, len=10+Math.min(16,strength*1.2);
+    ctx.strokeStyle=getCSSVar('--accent'); ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(x-Math.cos(rad)*len,y-Math.sin(rad)*len); ctx.lineTo(x+Math.cos(rad)*len,y+Math.sin(rad)*len); ctx.stroke();
+    const hx=x+Math.cos(rad)*len, hy=y+Math.sin(rad)*len;
+    ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(hx-Math.cos(rad-0.4)*6,hy-Math.sin(rad-0.4)*6); ctx.moveTo(hx,hy); ctx.lineTo(hx-Math.cos(rad+0.4)*6,hy-Math.sin(rad+0.4)*6); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle=getCSSVar('--canvas-text'); ctx.font='10px Microsoft YaHei'; ctx.textAlign='center'; ctx.fillText('风'+strength.toFixed(1),x,y+36);
+}
+
+// ============ 拖拽坦克 ============
+function mapSimPointerDown(e){
+    const cv=document.getElementById('map-sim-canvas'); const rect=cv.getBoundingClientRect();
+    const px=e.clientX-rect.left, py=e.clientY-rect.top;
+    const s=mapSimState, map=getMapSimMap(), vX=mapSimView.viewMinX||0;
+    const myScr={x:mapSimView.pad+(s.myX-vX)*mapSimView.scale, y:(mapSimView.H-mapSimView.pad-(mapGroundY(map,s.myX)-mapSimView.minY)*mapSimView.scale)};
+    const enScr={x:mapSimView.pad+(s.enemyX-vX)*mapSimView.scale, y:(mapSimView.H-mapSimView.pad-(mapGroundY(map,s.enemyX)-mapSimView.minY)*mapSimView.scale)};
+    if(Math.hypot(px-myScr.x,py-myScr.y)<22){ mapSimDragging='my'; cv.setPointerCapture(e.pointerId); }
+    else if(Math.hypot(px-enScr.x,py-enScr.y)<22){ mapSimDragging='enemy'; cv.setPointerCapture(e.pointerId); }
+}
+function mapSimPointerMove(e){
+    if(!mapSimDragging) return;
+    const cv=document.getElementById('map-sim-canvas'); const rect=cv.getBoundingClientRect();
+    const px=e.clientX-rect.left; const map=getMapSimMap(), vX=mapSimView.viewMinX||0;
+    const mx=(px-mapSimView.pad)/mapSimView.scale+vX;
+    const cx=Math.max(10,Math.min((map.width||GB_MAP_W)-10,mx));
+    if(mapSimDragging==='my') document.getElementById('mapsim-myx').value=Math.round(cx);
+    else document.getElementById('mapsim-enemyx').value=Math.round(cx);
+    onMapSimInput();
+}
+function mapSimPointerUp(){ mapSimDragging=null; }
+
+// ============ 动画 ============
+function playMapSimAnimation(){
+    if(mapSimAnimRAF){ cancelAnimationFrame(mapSimAnimRAF); mapSimAnimRAF=null; }
+    if(!mapSimResult) computeMapSim();
+    const T=(mapSimResult&&mapSimResult.T)||2;
+    const dur=Math.max(700,Math.min(3500,T*650));
+    const btn=document.getElementById('mapsim-fire'); if(btn) btn.disabled=true;
+    const t0=performance.now();
+    function frame(now){ const p=Math.min(1,(now-t0)/dur); drawMapSim(p); if(p<1) mapSimAnimRAF=requestAnimationFrame(frame); else { mapSimAnimRAF=null; setTimeout(()=>{drawMapSim(); if(btn)btn.disabled=false;},700); } }
+    mapSimAnimRAF=requestAnimationFrame(frame);
+}
+
+// ============ 图片导入 ============
+function onMapSimImgFile(e){
+    const f=e.target.files[0]; if(!f) return;
+    const img=new Image();
+    img.onload=()=>{ importedImgCanvas=document.createElement('canvas'); importedImgCanvas.width=img.naturalWidth; importedImgCanvas.height=img.naturalHeight; importedImgCanvas.getContext('2d').drawImage(img,0,0);
+        document.getElementById('mapsim-import-bar').style.display='flex';
+        document.getElementById('mapsim-import-status').textContent=`已载入 ${img.naturalWidth}×${img.naturalHeight}, 调阈值后确认`;
+        drawMapSim(); };
+    img.src=URL.createObjectURL(f);
+}
+function extractImportedTerrain(){
+    if(!importedImgCanvas) return null;
+    const w=importedImgCanvas.width, h=importedImgCanvas.height;
+    const data=importedImgCanvas.getContext('2d').getImageData(0,0,w,h).data;
+    const thresh=parseInt(document.getElementById('mapsim-thresh').value)||120;
+    const colGround=[];
+    for(let x=0;x<w;x++){ let gy=h; for(let y=0;y<h;y++){ const i=(y*w+x)*4; const lum=0.299*data[i]+0.587*data[i+1]+0.114*data[i+2]; if(lum<thresh){ gy=y; break; } } colGround.push(gy); }
+    return { w,h,colGround };
+}
+function drawImportPreview(ctx,toScreenX,toScreenY,mapWidth){
+    const ex=extractImportedTerrain(); if(!ex) return;
+    const {w,h,colGround}=ex;
+    ctx.save(); ctx.strokeStyle='#22c55e'; ctx.lineWidth=2; ctx.beginPath();
+    for(let x=0;x<w;x++){ const mx=(x/w)*mapWidth; const my=(1-colGround[x]/h)*200; const sx=toScreenX(mx), sy=toScreenY(mapGroundY(getMapSimMap(),mx)+my); if(x===0)ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy); }
+    ctx.stroke(); ctx.restore();
+}
+function confirmImportedMap(){
+    if(!importedImgCanvas){ showToast('请先选择图片'); return; }
+    const ex=extractImportedTerrain(); if(!ex) return;
+    const {w,h,colGround}=ex, spanSD=parseInt(document.getElementById('mapsim-span').value)||40, mapWidth=spanSD*40;
+    const heightScale=300, terrain=[], N=80;
+    for(let i=0;i<=N;i++){ const fx=(i/N)*mapWidth; const sx=Math.min(w-1,Math.floor((i/N)*w)); const relY=((h-colGround[sx])/h)*heightScale-heightScale*0.3; terrain.push([Math.round(fx),+relY.toFixed(1)]); }
+    for(let k=0;k<2;k++) for(let i=1;i<terrain.length-1;i++) terrain[i][1]=(terrain[i-1][1]+terrain[i][1]+terrain[i+1][1])/3;
+    const key='__imported__';
+    GB_IMPORTED_MAPS[key]={ name:'导入地图 (图片提取)', sky:'#0f0f17', ground:'#5a4a32', grid:'#3a2f22', terrain, width:mapWidth, imported:true, note:'由导入图片提取', spawnMy:80, spawnEnemy:mapWidth-100 };
+    populateMapSimDropdown(); document.getElementById('mapsim-map').value=key;
+    mapSimState.mapKey=key; mapSimState.myX=80; mapSimState.enemyX=mapWidth-100;
+    document.getElementById('mapsim-myx').value=mapSimState.myX; document.getElementById('mapsim-enemyx').value=mapSimState.enemyX;
+    document.getElementById('mapsim-import-status').textContent='已生成为地图, 可拖动坦克试射';
+    onMapSimInput();
+}
+
+// ============ 初始化 ============
+(function init(){
+    populateMapSimDropdown();
+    try{ const st=JSON.parse(localStorage.getItem('mapsim-state')||'null'); if(st) Object.assign(mapSimState,st); }catch(e){}
+    const setv=(id,v)=>{ const el=document.getElementById(id); if(el&&v!=null) el.value=v; };
+    setv('mapsim-myx',mapSimState.myX); setv('mapsim-enemyx',mapSimState.enemyX); setv('mapsim-side',mapSimState.side);
+    setv('mapsim-wa',mapSimState.windAngle); setv('mapsim-wa-num',mapSimState.windAngle); setv('mapsim-ws',mapSimState.windStrength);
+    setv('mapsim-angle',mapSimState.angle); setv('mapsim-power',mapSimState.power);
+    const sel=document.getElementById('mapsim-sim-map')||document.getElementById('mapsim-map');
+    if(sel) sel.value=gbMapKeys().includes(mapSimState.mapKey)?mapSimState.mapKey:(gbMapKeys()[0]||'miratown');
+    ['mapsim-map','mapsim-myx','mapsim-enemyx','mapsim-side','mapsim-ws','mapsim-angle','mapsim-power'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input',onMapSimInput); });
+    const th=document.getElementById('mapsim-thresh'); th.addEventListener('input',()=>{ document.getElementById('mapsim-thresh-val').textContent=th.value; if(importedImgCanvas) drawMapSim(); });
+    document.getElementById('mapsim-imgfile').addEventListener('change',onMapSimImgFile);
+    const cv=document.getElementById('map-sim-canvas');
+    cv.addEventListener('pointerdown',mapSimPointerDown); cv.addEventListener('pointermove',mapSimPointerMove); window.addEventListener('pointerup',mapSimPointerUp);
+    window.addEventListener('resize',()=>drawMapSim());
+    onMapSimInput();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+﻿visible forms after launch: 1
+=== FORM launch[0] cls=ThunderRT6FormDC size=290x278 at(114,103) title='恐龙计算器(制作:悲伤泪花)' ===
+  id=1    ThunderRT6CommandButton    rel=(192,221)-(263,246) vis=True txt='关于和说明'
+  id=2    ThunderRT6CommandButton    rel=(120,167)-(225,192) vis=True txt='右攻左'
+  id=3    ThunderRT6CommandButton    rel=(120,135)-(225,160) vis=True txt='左攻右'
+  SAVED c:\Users\fanli\Documents\zcodegunbound\beta\_v216_launch0.png
+visible forms after clicks: 1
+=== FORM form[0] cls=ThunderRT6FormDC size=290x278 at(114,103) title='恐龙计算器(制作:悲伤泪花)' ===
+  id=1    ThunderRT6CommandButton    rel=(192,221)-(263,246) vis=True txt='关于和说明'
+  id=2    ThunderRT6CommandButton    rel=(120,167)-(225,192) vis=True txt='右攻左'
+  id=3    ThunderRT6CommandButton    rel=(120,135)-(225,160) vis=True txt='左攻右'
+  SAVED c:\Users\fanli\Documents\zcodegunbound\beta\_v216_form0.png
+
